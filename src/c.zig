@@ -128,15 +128,17 @@ pub extern fn ts_parser_cancellation_flag(self: ?*const Parser) ?*const usize;
 pub extern fn ts_parser_set_logger(self: ?*Parser, logger: Logger) void;
 pub extern fn ts_parser_logger(self: ?*const Parser) Logger;
 pub extern fn ts_parser_print_dot_graphs(self: ?*Parser, file: c_int) void;
+
 pub extern fn ts_tree_copy(self: ?*const Tree) ?*Tree;
 pub extern fn ts_tree_delete(self: ?*Tree) void;
 pub extern fn ts_tree_root_node(self: ?*const Tree) Node;
 pub extern fn ts_tree_root_node_with_offset(self: ?*const Tree, offset_bytes: u32, offset_point: Point) Node;
 pub extern fn ts_tree_language(?*const Tree) ?*const Language;
-pub extern fn ts_tree_included_ranges(?*const Tree, length: [*c]u32) [*c]Range;
-pub extern fn ts_tree_edit(self: ?*Tree, edit: [*c]const InputEdit) void;
-pub extern fn ts_tree_get_changed_ranges(old_tree: ?*const Tree, new_tree: ?*const Tree, length: [*c]u32) [*c]Range;
+pub extern fn ts_tree_included_ranges(?*const Tree, length: *u32) [*]Range;
+pub extern fn ts_tree_edit(self: ?*Tree, edit: *const InputEdit) void;
+pub extern fn ts_tree_get_changed_ranges(old_tree: ?*const Tree, new_tree: ?*const Tree, length: *u32) [*]Range;
 pub extern fn ts_tree_print_dot_graph(?*const Tree, file_descriptor: c_int) void;
+
 pub extern fn ts_node_type(Node) [*c]const u8;
 pub extern fn ts_node_symbol(Node) Symbol;
 pub extern fn ts_node_start_byte(Node) u32;
@@ -170,6 +172,7 @@ pub extern fn ts_node_named_descendant_for_byte_range(Node, u32, u32) Node;
 pub extern fn ts_node_named_descendant_for_point_range(Node, Point, Point) Node;
 pub extern fn ts_node_edit([*c]Node, [*c]const InputEdit) void;
 pub extern fn ts_node_eq(Node, Node) bool;
+
 pub extern fn ts_tree_cursor_new(Node) TreeCursor;
 pub extern fn ts_tree_cursor_delete([*c]TreeCursor) void;
 pub extern fn ts_tree_cursor_reset([*c]TreeCursor, Node) void;
@@ -182,6 +185,7 @@ pub extern fn ts_tree_cursor_goto_first_child([*c]TreeCursor) bool;
 pub extern fn ts_tree_cursor_goto_first_child_for_byte([*c]TreeCursor, u32) i64;
 pub extern fn ts_tree_cursor_goto_first_child_for_point([*c]TreeCursor, Point) i64;
 pub extern fn ts_tree_cursor_copy([*c]const TreeCursor) TreeCursor;
+
 pub extern fn ts_query_new(language: ?*const Language, source: [*c]const u8, source_len: u32, error_offset: [*c]u32, error_type: [*c]QueryError) ?*Query;
 pub extern fn ts_query_delete(?*Query) void;
 pub extern fn ts_query_pattern_count(?*const Query) u32;
@@ -197,6 +201,7 @@ pub extern fn ts_query_capture_quantifier_for_id(?*const Query, pattern_id: u32,
 pub extern fn ts_query_string_value_for_id(?*const Query, id: u32, length: [*c]u32) [*c]const u8;
 pub extern fn ts_query_disable_capture(?*Query, [*c]const u8, u32) void;
 pub extern fn ts_query_disable_pattern(?*Query, u32) void;
+
 pub extern fn ts_query_cursor_new() ?*QueryCursor;
 pub extern fn ts_query_cursor_delete(?*QueryCursor) void;
 pub extern fn ts_query_cursor_exec(?*QueryCursor, ?*const Query, Node) void;
@@ -208,6 +213,7 @@ pub extern fn ts_query_cursor_set_point_range(?*QueryCursor, Point, Point) void;
 pub extern fn ts_query_cursor_next_match(?*QueryCursor, match: [*c]QueryMatch) bool;
 pub extern fn ts_query_cursor_remove_match(?*QueryCursor, id: u32) void;
 pub extern fn ts_query_cursor_next_capture(?*QueryCursor, match: [*c]QueryMatch, capture_index: [*c]u32) bool;
+
 pub extern fn ts_language_symbol_count(?*const Language) u32;
 pub extern fn ts_language_symbol_name(?*const Language, Symbol) [*c]const u8;
 pub extern fn ts_language_symbol_for_name(self: ?*const Language, string: [*c]const u8, length: u32, is_named: bool) Symbol;
@@ -216,4 +222,5 @@ pub extern fn ts_language_field_name_for_id(?*const Language, FieldId) [*c]const
 pub extern fn ts_language_field_id_for_name(?*const Language, [*c]const u8, u32) FieldId;
 pub extern fn ts_language_symbol_type(?*const Language, Symbol) SymbolType;
 pub extern fn ts_language_version(?*const Language) u32;
+
 pub extern fn ts_set_allocator(new_malloc: ?*const fn (usize) callconv(.C) ?*anyopaque, new_calloc: ?*const fn (usize, usize) callconv(.C) ?*anyopaque, new_realloc: ?*const fn (?*anyopaque, usize) callconv(.C) ?*anyopaque, new_free: ?*const fn (?*anyopaque) callconv(.C) void) void;
