@@ -1,6 +1,9 @@
 pub const c = @import("c.zig");
 pub const std = @import("std");
 
+pub const Symbol = c.Symbol;
+pub const FieldId = c.FieldId;
+
 pub const Point = c.Point;
 pub const Logger = c.Logger;
 pub const Range = c.Range;
@@ -170,7 +173,183 @@ pub const Tree = struct {
 pub const Node = struct {
     raw: c.Node,
 
+    pub const ChildIterator = struct {
+        node: Node,
+        index: u32 = 0,
+
+        pub fn next(iterator: ChildIterator) ?Node {
+            defer iterator.index += 1;
+
+            var maybe_child = iterator.node.getChild(iterator.index);
+            return if (maybe_child.isNull())
+                null
+            else
+                maybe_child;
+        }
+    };
+
+    pub const NamedChildIterator = struct {
+        node: Node,
+        index: u32 = 0,
+
+        pub fn next(iterator: NamedChildIterator) ?Node {
+            defer iterator.index += 1;
+
+            var maybe_child = iterator.node.getNamedChild(iterator.index);
+            return if (maybe_child.isNull())
+                null
+            else
+                maybe_child;
+        }
+    };
+
     pub fn getTree(node: Node) Tree {
         return .{ .handle = node.raw.tree.? };
+    }
+
+    pub fn getType(node: Node) []const u8 {
+        return std.mem.span(c.ts_node_type(node.raw));
+    }
+
+    pub fn getSymbol(node: Node) Symbol {
+        return c.ts_node_symbol(node.raw);
+    }
+
+    pub fn getStartByte(node: Node) u32 {
+        return c.ts_node_start_byte(node.raw);
+    }
+
+    pub fn getStartPoint(node: Node) Point {
+        return c.ts_node_start_point(node.raw);
+    }
+
+    pub fn getEndByte(node: Node) u32 {
+        return c.ts_node_end_byte(node.raw);
+    }
+
+    pub fn getEndPoint(node: Node) Point {
+        return c.ts_node_end_point(node.raw);
+    }
+
+    /// Caller must call `freeSExpressionString` when done
+    pub fn asSExpressionString(node: Node) []const u8 {
+        return std.mem.span(c.ts_node_string(node.raw));
+    }
+
+    pub fn freeSExpressionString(str: []const u8) void {
+        std.heap.c_allocator.free(str);
+    }
+
+    pub fn format(node: Node, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        const str = node.asSExpressionString();
+        try writer.print("Node({s})", .{str});
+        defer node.freeSExpressionString(str);
+    }
+
+    pub fn isNull(node: Node) bool {
+        return c.ts_node_is_null(node.raw);
+    }
+
+    pub fn isNamed(node: Node) bool {
+        return c.ts_node_is_named(node.raw);
+    }
+
+    pub fn isMissing(node: Node) bool {
+        return c.ts_node_is_missing(node.raw);
+    }
+
+    pub fn isExtra(node: Node) bool {
+        return c.ts_node_is_extra(node.raw);
+    }
+
+    pub fn hasChanges(node: Node) bool {
+        return c.ts_node_has_changes(node.raw);
+    }
+
+    pub fn hasError(node: Node) bool {
+        return c.ts_node_has_error(node.raw);
+    }
+
+    /// Remember to check with isNull (root)
+    pub fn getParent(node: Node) Node {
+        return .{ .raw = c.ts_node_parent(node.raw) };
+    }
+
+    /// Remember to check with isNull
+    pub fn getChild(node: Node, child_index: u32) Node {
+        return .{ .raw = c.ts_node_child(node.raw, child_index) };
+    }
+
+    pub fn childIterator(node: Node) ChildIterator {
+        return ChildIterator{ .node = node };
+    }
+
+    pub fn getFieldNameForChild(node: Node, child_index: u32) ?[]const u8 {
+        return std.mem.span(c.ts_node_field_name_for_child(node.raw, child_index) orelse return null);
+    }
+
+    pub fn getChildCount(node: Node) u32 {
+        return c.ts_node_child_count(node.raw);
+    }
+
+    /// Remember to check with isNull
+    pub fn getNamedChild(node: Node, child_index: u32) Node {
+        return .{ .raw = c.ts_node_named_child(node.raw, child_index) };
+    }
+
+    pub fn namedChildIterator(node: Node) NamedChildIterator {
+        return NamedChildIterator{ .node = node };
+    }
+
+    pub fn getNamedChildCount(node: Node) u32 {
+        return c.ts_node_named_child_count(node.raw);
+    }
+
+    /// Remember to check with isNull
+    pub fn getChildByFieldName(node: Node, field_name: []const u8) Node {
+        return c.ts_node_child_by_field_name(node.raw, field_name.ptr, @intCast(u32, field_name.len));
+    }
+
+    /// Remember to check with isNull
+    pub fn getChildByFieldId(node: Node, field_id: FieldId) Node {
+        return c.ts_node_child_by_field_name(node.raw, field_id);
+    }
+
+    // TODO: Sibling iterators
+
+    pub fn getNextSibling(node: Node) Node {
+        return .{ .raw = c.ts_node_next_sibling(node.raw) };
+    }
+
+    pub fn getPrevSibling(node: Node) Node {
+        return .{ .raw = c.ts_node_prev_sibling(node.raw) };
+    }
+
+    pub fn getNextNamedSibling(node: Node) Node {
+        return .{ .raw = c.ts_node_next_named_sibling(node.raw) };
+    }
+
+    pub fn getPrevNamedSibling(node: Node) Node {
+        return .{ .raw = c.ts_node_prev_named_sibling(node.raw) };
+    }
+
+    // TODO: Niche and I'm lazy
+    // pub extern fn ts_node_first_child_for_byte(Node, u32) Node;
+    // pub extern fn ts_node_first_named_child_for_byte(Node, u32) Node;
+    // pub extern fn ts_node_descendant_for_byte_range(Node, u32, u32) Node;
+    // pub extern fn ts_node_descendant_for_point_range(Node, Point, Point) Node;
+    // pub extern fn ts_node_named_descendant_for_byte_range(Node, u32, u32) Node;
+    // pub extern fn ts_node_named_descendant_for_point_range(Node, Point, Point) Node;
+
+    /// Apply a text diff to the node
+    pub fn edit(node: Node, the_edit: *const InputEdit) void {
+        c.ts_node_edit(node.raw, the_edit);
+    }
+
+    pub fn eql(a: Node, b: Node) bool {
+        return c.ts_node_eq(a.raw, b.raw);
     }
 };
