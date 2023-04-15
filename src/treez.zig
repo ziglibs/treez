@@ -11,6 +11,8 @@ pub const Input = c.Input;
 pub const InputEdit = c.InputEdit;
 pub const InputEncoding = c.InputEncoding;
 
+pub const QueryMatch = c.QueryMatch;
+
 pub const Language = struct {
     handle: *const c.Language,
 
@@ -376,7 +378,7 @@ pub const Query = struct {
 
     pub const InitError = error{
         InvalidSyntax,
-        InvalidNoteType,
+        InvalidNodeType,
         InvalidField,
         InvalidCapture,
         InvalidStructure,
@@ -436,6 +438,15 @@ pub const QueryCursor = struct {
 
     pub fn execute(qc: QueryCursor, query: Query, node: Node) void {
         c.ts_query_cursor_exec(qc.handle, query.handle, node.raw);
+    }
+
+    pub fn getNextCapture(qc: QueryCursor) ?c.QueryMatch {
+        var match: QueryMatch = undefined;
+        var capture_index: u32 = 0;
+        return if (c.ts_query_cursor_next_capture(qc.handle, &match, &capture_index))
+            match
+        else
+            null;
     }
 
     // TODO: Implement these

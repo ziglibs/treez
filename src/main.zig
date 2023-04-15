@@ -9,6 +9,27 @@ pub fn main() !void {
 
     try parser.setLanguage(ziglang);
 
-    const tree = try parser.parseString(null, "const abc = 123;");
-    std.log.info("{s}", .{tree.getRootNode()});
+    const inp = @embedFile("main.zig");
+    const tree = try parser.parseString(null, inp);
+    defer tree.deinit();
+
+    const query = try treez.Query.init(ziglang,
+        \\[
+        \\  function_call: (IDENTIFIER)
+        \\  function: (IDENTIFIER)
+        \\] @id
+    );
+    defer query.deinit();
+
+    const cursor = try treez.QueryCursor.init();
+    defer cursor.deinit();
+
+    cursor.execute(query, tree.getRootNode());
+
+    while (cursor.getNextCapture()) |match| {
+        for (match.captureSlice()) |capture| {
+            const node = treez.Node{ .raw = capture.node };
+            std.log.info("{s}", .{inp[node.getStartByte()..node.getEndByte()]});
+        }
+    }
 }

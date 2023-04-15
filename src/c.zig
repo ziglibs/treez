@@ -80,6 +80,10 @@ pub const QueryMatch = extern struct {
     pattern_index: u16,
     capture_count: u16,
     captures: [*]const QueryCapture,
+
+    pub fn captureSlice(match: QueryMatch) []const QueryCapture {
+        return match.captures[0..match.capture_count];
+    }
 };
 
 pub const QueryPredicateStepType = enum(c_uint) {
@@ -212,7 +216,7 @@ pub extern fn ts_query_cursor_set_byte_range(?*QueryCursor, u32, u32) void;
 pub extern fn ts_query_cursor_set_point_range(?*QueryCursor, Point, Point) void;
 pub extern fn ts_query_cursor_next_match(?*QueryCursor, match: [*c]QueryMatch) bool;
 pub extern fn ts_query_cursor_remove_match(?*QueryCursor, id: u32) void;
-pub extern fn ts_query_cursor_next_capture(?*QueryCursor, match: [*c]QueryMatch, capture_index: [*c]u32) bool;
+pub extern fn ts_query_cursor_next_capture(?*QueryCursor, match: *QueryMatch, capture_index: *u32) bool;
 
 pub extern fn ts_language_symbol_count(?*const Language) u32;
 pub extern fn ts_language_symbol_name(?*const Language, Symbol) [*c]const u8;
