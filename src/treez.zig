@@ -12,14 +12,14 @@ pub const InputEdit = c.InputEdit;
 pub const InputEncoding = c.InputEncoding;
 
 pub const Language = struct {
-    handle: *c.Language,
+    handle: *const c.Language,
 
     pub const GetError = error{Unknown};
     pub fn get(comptime language_name: []const u8) GetError!Language {
         return .{
-            .handle = @extern(fn () callconv(.C) ?*c.Language, .{
+            .handle = (@extern(?*const fn () callconv(.C) ?*const c.Language, .{
                 .name = std.fmt.comptimePrint("tree_sitter_{s}", .{language_name}),
-            })() orelse return error.Unknown,
+            }) orelse @compileError(std.fmt.comptimePrint("Cannot find extern tree_sitter_{s}", .{language_name})))() orelse return error.Unknown,
         };
     }
 
@@ -84,7 +84,7 @@ pub const Parser = struct {
     }
 
     pub fn parseString(parser: Parser, old_tree: ?Tree, string: []const u8) ParseError!Tree {
-        return if (c.ts_parser_parse_string(parser.handle, if (old_tree) old_tree.handle else null, string.ptr, @intCast(u32, string.len))) |tree|
+        return if (c.ts_parser_parse_string(parser.handle, if (old_tree) |t| t.handle else null, string.ptr, @intCast(u32, string.len))) |tree|
             .{ .handle = tree }
         else
             (if (parser.getLanguage()) |_|
@@ -247,7 +247,8 @@ pub const Node = struct {
     }
 
     pub fn freeSExpressionString(str: []const u8) void {
-        std.heap.c_allocator.free(str);
+        // TODO: Use allocator + set_allocator
+        std.c.free(@ptrCast(*anyopaque, @constCast(str.ptr)));
     }
 
     pub fn format(node: Node, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -256,7 +257,7 @@ pub const Node = struct {
 
         const str = node.asSExpressionString();
         try writer.print("Node({s})", .{str});
-        defer node.freeSExpressionString(str);
+        defer freeSExpressionString(str);
     }
 
     pub fn isNull(node: Node) bool {

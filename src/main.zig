@@ -8,4 +8,7 @@ pub fn main() !void {
     defer parser.deinit();
 
     try parser.setLanguage(ziglang);
+
+    const tree = try parser.parseString(null, "const abc = 123;");
+    std.log.info("{s}", .{tree.getRootNode()});
 }
