@@ -186,7 +186,7 @@ pub extern fn ts_tree_cursor_goto_first_child_for_byte([*c]TreeCursor, u32) i64;
 pub extern fn ts_tree_cursor_goto_first_child_for_point([*c]TreeCursor, Point) i64;
 pub extern fn ts_tree_cursor_copy([*c]const TreeCursor) TreeCursor;
 
-pub extern fn ts_query_new(language: ?*const Language, source: [*c]const u8, source_len: u32, error_offset: [*c]u32, error_type: [*c]QueryError) ?*Query;
+pub extern fn ts_query_new(language: ?*const Language, source: [*]const u8, source_len: u32, error_offset: *u32, error_type: *QueryError) ?*Query;
 pub extern fn ts_query_delete(?*Query) void;
 pub extern fn ts_query_pattern_count(?*const Query) u32;
 pub extern fn ts_query_capture_count(?*const Query) u32;

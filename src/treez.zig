@@ -22,6 +22,16 @@ pub const Language = struct {
             })() orelse return error.Unknown,
         };
     }
+
+    // TODO: Implement these
+    // pub extern fn ts_language_symbol_count(?*const Language) u32;
+    // pub extern fn ts_language_symbol_name(?*const Language, Symbol) [*c]const u8;
+    // pub extern fn ts_language_symbol_for_name(self: ?*const Language, string: [*c]const u8, length: u32, is_named: bool) Symbol;
+    // pub extern fn ts_language_field_count(?*const Language) u32;
+    // pub extern fn ts_language_field_name_for_id(?*const Language, FieldId) [*c]const u8;
+    // pub extern fn ts_language_field_id_for_name(?*const Language, [*c]const u8, u32) FieldId;
+    // pub extern fn ts_language_symbol_type(?*const Language, Symbol) SymbolType;
+    // pub extern fn ts_language_version(?*const Language) u32;
 };
 
 pub const Parser = struct {
@@ -283,6 +293,8 @@ pub const Node = struct {
         return .{ .raw = c.ts_node_child(node.raw, child_index) };
     }
 
+    /// NOTE: If you're iterating with this frequently,
+    /// you should be using TreeCursor
     pub fn childIterator(node: Node) ChildIterator {
         return ChildIterator{ .node = node };
     }
@@ -300,6 +312,8 @@ pub const Node = struct {
         return .{ .raw = c.ts_node_named_child(node.raw, child_index) };
     }
 
+    /// NOTE: If you're iterating with this frequently,
+    /// you should be using TreeCursor
     pub fn namedChildIterator(node: Node) NamedChildIterator {
         return NamedChildIterator{ .node = node };
     }
@@ -353,3 +367,85 @@ pub const Node = struct {
         return c.ts_node_eq(a.raw, b.raw);
     }
 };
+
+// TODO: TreeCursor
+
+pub const Query = struct {
+    handle: *c.Query,
+
+    pub const InitError = error{
+        InvalidSyntax,
+        InvalidNoteType,
+        InvalidField,
+        InvalidCapture,
+        InvalidStructure,
+        InvalidLanguage,
+    };
+    pub fn init(
+        language: Language,
+        source: []const u8,
+    ) InitError!Query {
+        var error_offset: u32 = 0;
+        var error_type: c.QueryError = .none;
+
+        return if (c.ts_query_new(language.handle, source.ptr, @intCast(u32, source.len), &error_offset, &error_type)) |query|
+            .{ .handle = query }
+        else switch (error_type) {
+            .none => unreachable,
+            .syntax => error.InvalidSyntax,
+            .node_type => error.InvalidNodeType,
+            .field => error.InvalidField,
+            .capture => error.InvalidCapture,
+            .structure => error.InvalidStructure,
+            .language => error.InvalidLanguage,
+        };
+    }
+
+    pub fn deinit(query: Query) void {
+        c.ts_query_delete(query.handle);
+    }
+
+    // TODO: Implement these
+    // pub extern fn ts_query_pattern_count(?*const Query) u32;
+    // pub extern fn ts_query_capture_count(?*const Query) u32;
+    // pub extern fn ts_query_string_count(?*const Query) u32;
+    // pub extern fn ts_query_start_byte_for_pattern(?*const Query, u32) u32;
+    // pub extern fn ts_query_predicates_for_pattern(self: ?*const Query, pattern_index: u32, length: [*c]u32) [*c]const QueryPredicateStep;
+    // pub extern fn ts_query_is_pattern_rooted(self: ?*const Query, pattern_index: u32) bool;
+    // pub extern fn ts_query_is_pattern_non_local(self: ?*const Query, pattern_index: u32) bool;
+    // pub extern fn ts_query_is_pattern_guaranteed_at_step(self: ?*const Query, byte_offset: u32) bool;
+    // pub extern fn ts_query_capture_name_for_id(?*const Query, id: u32, length: [*c]u32) [*c]const u8;
+    // pub extern fn ts_query_capture_quantifier_for_id(?*const Query, pattern_id: u32, capture_id: u32) Quantifier;
+    // pub extern fn ts_query_string_value_for_id(?*const Query, id: u32, length: [*c]u32) [*c]const u8;
+    // pub extern fn ts_query_disable_capture(?*Query, [*c]const u8, u32) void;
+    // pub extern fn ts_query_disable_pattern(?*Query, u32) void;
+};
+
+pub const QueryCursor = struct {
+    handle: *c.QueryCursor,
+
+    pub const InitError = error{Unknown};
+    pub fn init() InitError!QueryCursor {
+        return .{ .handle = c.ts_query_cursor_new() orelse return error.Unknown };
+    }
+
+    pub fn deinit(qc: QueryCursor) void {
+        c.ts_query_cursor_delete(qc.handle);
+    }
+
+    pub fn execute(qc: QueryCursor, query: Query, node: Node) void {
+        c.ts_query_cursor_exec(qc.handle, query.handle, node.raw);
+    }
+
+    // TODO: Implement these
+    // pub extern fn ts_query_cursor_did_exceed_match_limit(?*const QueryCursor) bool;
+    // pub extern fn ts_query_cursor_match_limit(?*const QueryCursor) u32;
+    // pub extern fn ts_query_cursor_set_match_limit(?*QueryCursor, u32) void;
+    // pub extern fn ts_query_cursor_set_byte_range(?*QueryCursor, u32, u32) void;
+    // pub extern fn ts_query_cursor_set_point_range(?*QueryCursor, Point, Point) void;
+    // pub extern fn ts_query_cursor_next_match(?*QueryCursor, match: [*c]QueryMatch) bool;
+    // pub extern fn ts_query_cursor_remove_match(?*QueryCursor, id: u32) void;
+    // pub extern fn ts_query_cursor_next_capture(?*QueryCursor, match: [*c]QueryMatch, capture_index: [*c]u32) bool;
+};
+
+// TODO: set allocator
