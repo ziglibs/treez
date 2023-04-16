@@ -9,7 +9,7 @@ pub fn main() !void {
 
     try parser.setLanguage(ziglang);
 
-    const inp = @embedFile("main.zig");
+    const inp = @embedFile("example.zig");
     const tree = try parser.parseString(null, inp);
     defer tree.destroy();
 
