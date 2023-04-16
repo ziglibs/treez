@@ -624,6 +624,61 @@ pub const Query = opaque {
         externs.ts_query_delete(query);
     }
 
+    pub fn getPatternCount(query: *const Query) u32 {
+        return externs.ts_query_pattern_count(query);
+    }
+
+    pub fn getCaptureCount(query: *const Query) u32 {
+        return externs.ts_query_capture_count(query);
+    }
+
+    pub fn getStringCount(query: *const Query) u32 {
+        return externs.ts_query_string_count(query);
+    }
+
+    pub fn getStartByteForPattern(query: *const Query, pattern_index: u32) u32 {
+        return externs.ts_query_start_byte_for_pattern(query, pattern_index);
+    }
+
+    pub fn getPredicatesForPattern(query: *const Query, pattern_index: u32) [*]const PredicateStep {
+        var len: u32 = 0;
+        return externs.ts_query_predicates_for_pattern(query, pattern_index, &len)[0..len];
+    }
+
+    pub fn isPatternRooted(query: *const Query, pattern_index: u32) bool {
+        return externs.ts_query_is_pattern_rooted(query, pattern_index);
+    }
+
+    pub fn isPatternNonLocal(query: *const Query, pattern_index: u32) bool {
+        return externs.ts_query_is_pattern_non_local(query, pattern_index);
+    }
+
+    pub fn isPatternGuaranteedAtStep(query: *const Query, byte_offset: u32) bool {
+        return externs.ts_query_is_pattern_guaranteed_at_step(query, byte_offset);
+    }
+
+    pub fn captureNameForId(query: *const Query, id: u32) []const u8 {
+        var len: u32 = 0;
+        return externs.ts_query_capture_name_for_id(query, id, &len)[0..len];
+    }
+
+    pub fn ts_query_capture_quantifier_for_id(query: *const Query, pattern_id: u32, capture_id: u32) Quantifier {
+        return externs.ts_query_capture_quantifier_for_id(query, pattern_id, capture_id);
+    }
+
+    pub fn stringValueForId(query: *const Query, id: u32) []const u8 {
+        var len: u32 = 0;
+        return externs.ts_query_string_value_for_id(query, id, &len)[0..len];
+    }
+
+    pub fn disableCapture(query: *Query, capture: []const u8) void {
+        externs.ts_query_disable_capture(query, capture.ptr, @intCast(u32, capture.len));
+    }
+
+    pub fn disablePattern(query: *Query, pattern_index: u32) void {
+        externs.ts_query_disable_pattern(query, pattern_index);
+    }
+
     pub const Match = extern struct {
         id: u32,
         pattern_index: u16,
@@ -654,12 +709,36 @@ pub const Query = opaque {
             externs.ts_query_cursor_exec(cursor, query, node);
         }
 
+        pub fn didExceedMatchLimit(cursor: *Cursor) bool {
+            return externs.ts_query_cursor_did_exceed_match_limit(cursor);
+        }
+
+        pub fn getMatchLimit(cursor: *Cursor) u32 {
+            return externs.ts_query_cursor_match_limit(cursor);
+        }
+
+        pub fn setMatchLimit(cursor: *Cursor, limit: u32) void {
+            externs.ts_query_cursor_set_match_limit(cursor, limit);
+        }
+
+        pub fn setByteRange(cursor: *Cursor, start: u32, end: u32) void {
+            externs.ts_query_cursor_set_byte_range(cursor, start, end);
+        }
+
+        pub fn setPointRange(cursor: *Cursor, start: Point, end: Point) void {
+            externs.ts_query_cursor_set_point_range(cursor, start, end);
+        }
+
         pub fn nextMatch(cursor: *Cursor) ?Match {
             var match: Query.Match = undefined;
             return if (externs.ts_query_cursor_next_match(cursor, &match))
                 match
             else
                 null;
+        }
+
+        pub fn removeMatch(cursor: Cursor, id: u32) void {
+            externs.ts_query_cursor_remove_match(cursor, id);
         }
 
         pub fn nextCapture(cursor: *Cursor) ?Capture {
@@ -683,9 +762,9 @@ pub const Query = opaque {
         pub extern fn ts_query_is_pattern_rooted(self: ?*const Query, pattern_index: u32) bool;
         pub extern fn ts_query_is_pattern_non_local(self: ?*const Query, pattern_index: u32) bool;
         pub extern fn ts_query_is_pattern_guaranteed_at_step(self: ?*const Query, byte_offset: u32) bool;
-        pub extern fn ts_query_capture_name_for_id(?*const Query, id: u32, length: *u32) [*:0]const u8;
+        pub extern fn ts_query_capture_name_for_id(?*const Query, id: u32, length: *u32) [*]const u8;
         pub extern fn ts_query_capture_quantifier_for_id(?*const Query, pattern_id: u32, capture_id: u32) Quantifier;
-        pub extern fn ts_query_string_value_for_id(?*const Query, id: u32, length: *u32) [*:0]const u8;
+        pub extern fn ts_query_string_value_for_id(?*const Query, id: u32, length: *u32) [*]const u8;
         pub extern fn ts_query_disable_capture(?*Query, [*]const u8, u32) void;
         pub extern fn ts_query_disable_pattern(?*Query, u32) void;
 
