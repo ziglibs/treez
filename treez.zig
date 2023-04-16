@@ -444,7 +444,7 @@ pub const Node = extern struct {
 
     pub fn freeSExpressionString(str: []const u8) void {
         // TODO: Use allocator + set_allocator
-        std.free(@ptrCast(*anyopaque, @constCast(str.ptr)));
+        std.c.free(@ptrCast(*anyopaque, @constCast(str.ptr)));
     }
 
     pub fn format(node: Node, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
