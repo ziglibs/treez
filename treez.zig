@@ -41,8 +41,19 @@ pub const LogType = enum(c_uint) {
 };
 
 pub const Logger = extern struct {
-    payload: ?*anyopaque,
-    log: ?*const fn (payload: ?*anyopaque, log_type: LogType, log: [*:0]const u8) callconv(.C) void,
+    context: ?*anyopaque,
+    log_fn: ?*const fn (context: ?*anyopaque, log_type: LogType, log: [*:0]const u8) callconv(.C) void,
+};
+
+const StandardLogger = struct {
+    fn log(context: ?*anyopaque, log_type: LogType, msg: [*:0]const u8) callconv(.C) void {
+        _ = context;
+
+        switch (log_type) {
+            .lex => std.log.scoped(.tree_sitter_lex).debug("{s}", .{std.mem.span(msg)}),
+            .parse => std.log.scoped(.tree_sitter_parse).debug("{s}", .{std.mem.span(msg)}),
+        }
+    }
 };
 
 pub const InputEdit = extern struct {
@@ -53,14 +64,6 @@ pub const InputEdit = extern struct {
     old_end_point: Point,
     new_end_point: Point,
 };
-
-// pub const TreeCursor = extern struct {
-//     tree: ?*const anyopaque,
-//     id: ?*const anyopaque,
-//     context: [2]u32,
-// };
-
-// Parser
 
 pub const Language = opaque {
     pub const GetError = error{Unknown};
@@ -74,11 +77,11 @@ pub const Language = opaque {
 
     pub const externs = struct {
         pub extern fn ts_language_symbol_count(?*const Language) u32;
-        pub extern fn ts_language_symbol_name(?*const Language, Symbol) [*c]const u8;
-        pub extern fn ts_language_symbol_for_name(self: ?*const Language, string: [*c]const u8, length: u32, is_named: bool) Symbol;
+        pub extern fn ts_language_symbol_name(?*const Language, Symbol) [*:0]const u8;
+        pub extern fn ts_language_symbol_for_name(self: ?*const Language, string: [*]const u8, length: u32, is_named: bool) Symbol;
         pub extern fn ts_language_field_count(?*const Language) u32;
-        pub extern fn ts_language_field_name_for_id(?*const Language, FieldId) [*c]const u8;
-        pub extern fn ts_language_field_id_for_name(?*const Language, [*c]const u8, u32) FieldId;
+        pub extern fn ts_language_field_name_for_id(?*const Language, FieldId) [*:0]const u8;
+        pub extern fn ts_language_field_id_for_name(?*const Language, [*]const u8, u32) FieldId;
         pub extern fn ts_language_symbol_type(?*const Language, Symbol) SymbolType;
         pub extern fn ts_language_version(?*const Language) u32;
     };
@@ -173,6 +176,13 @@ pub const Parser = opaque {
         externs.ts_parser_set_logger(parser, logger);
     }
 
+    pub fn useStandardLogger(parser: *Parser) void {
+        parser.setLogger(.{
+            .context = @ptrCast(*anyopaque, parser),
+            .log_fn = &StandardLogger.log,
+        });
+    }
+
     pub fn getLogger(parser: *Parser) Logger {
         return externs.ts_parser_logger(parser);
     }
@@ -243,6 +253,69 @@ pub const Tree = opaque {
         externs.ts_tree_print_dot_graph(tree, file.handle);
     }
 
+    pub const Cursor = extern struct {
+        tree: ?*const anyopaque,
+        id: ?*const anyopaque,
+        context: [2]u32,
+
+        pub fn create(node: Node) Cursor {
+            return externs.ts_tree_cursor_new(node);
+        }
+
+        pub fn destroy(cursor: *Cursor) void {
+            externs.ts_tree_cursor_delete(cursor);
+        }
+
+        pub fn reset(cursor: *Cursor, node: Node) void {
+            return externs.ts_tree_cursor_reset(cursor, node);
+        }
+
+        pub fn getCurrentNode(cursor: *const Cursor) Node {
+            return externs.ts_tree_cursor_current_node(cursor);
+        }
+
+        pub fn getCurrentFieldName(cursor: *const Cursor) []const u8 {
+            return externs.ts_tree_cursor_current_field_name(cursor);
+        }
+
+        pub fn getCurrentFieldId(cursor: *const Cursor) FieldId {
+            return externs.ts_tree_cursor_current_field_id(cursor);
+        }
+
+        /// Returns true on success
+        pub fn gotoParent(cursor: *Cursor) bool {
+            return externs.ts_tree_cursor_goto_parent(cursor);
+        }
+
+        /// Returns true on success
+        pub fn gotoNextSibling(cursor: *Cursor) bool {
+            return externs.ts_tree_cursor_goto_next_sibling(cursor);
+        }
+
+        /// Returns true on success
+        pub fn gotoFirstChild(cursor: *Cursor) bool {
+            return externs.ts_tree_cursor_goto_first_child(cursor);
+        }
+
+        pub fn gotoFirstChildForByte(cursor: *Cursor, byte: u32) bool {
+            return if (externs.ts_tree_cursor_goto_first_child_for_byte(cursor, byte) == -1)
+                false
+            else
+                true;
+        }
+
+        pub fn gotoFirstChildForPoint(cursor: *Cursor, point: Point) bool {
+            return if (externs.ts_tree_cursor_goto_first_child_for_point(cursor, point) == -1)
+                false
+            else
+                true;
+        }
+
+        pub fn dupe(cursor: *const Cursor) Cursor {
+            return externs.ts_tree_cursor_copy(cursor);
+        }
+    };
+
     pub const externs = struct {
         pub extern fn ts_tree_copy(self: ?*const Tree) ?*Tree;
         pub extern fn ts_tree_delete(self: ?*Tree) void;
@@ -253,6 +326,19 @@ pub const Tree = opaque {
         pub extern fn ts_tree_edit(self: ?*Tree, edit: *const InputEdit) void;
         pub extern fn ts_tree_get_changed_ranges(old_tree: ?*const Tree, new_tree: ?*const Tree, length: *u32) [*]Range;
         pub extern fn ts_tree_print_dot_graph(?*const Tree, file_descriptor: c_int) void;
+
+        pub extern fn ts_tree_cursor_new(Node) Cursor;
+        pub extern fn ts_tree_cursor_delete(*Cursor) void;
+        pub extern fn ts_tree_cursor_reset(*Cursor, Node) void;
+        pub extern fn ts_tree_cursor_current_node(*const Cursor) Node;
+        pub extern fn ts_tree_cursor_current_field_name(*const Cursor) [*:0]const u8;
+        pub extern fn ts_tree_cursor_current_field_id(*const Cursor) FieldId;
+        pub extern fn ts_tree_cursor_goto_parent(*Cursor) bool;
+        pub extern fn ts_tree_cursor_goto_next_sibling(*Cursor) bool;
+        pub extern fn ts_tree_cursor_goto_first_child(*Cursor) bool;
+        pub extern fn ts_tree_cursor_goto_first_child_for_byte(*Cursor, u32) i64;
+        pub extern fn ts_tree_cursor_goto_first_child_for_point(*Cursor, Point) i64;
+        pub extern fn ts_tree_cursor_copy(*const Cursor) Cursor;
     };
 };
 
@@ -430,7 +516,7 @@ pub const Node = extern struct {
     }
 
     /// Apply a text diff to the node
-    pub fn edit(node: Node, the_edit: *const InputEdit) void {
+    pub fn edit(node: *Node, the_edit: *const InputEdit) void {
         externs.ts_node_edit(node, the_edit);
     }
 
@@ -474,8 +560,6 @@ pub const Node = extern struct {
         pub extern fn ts_node_eq(Node, Node) bool;
     };
 };
-
-// TODO: TreeCursor
 
 pub const Query = opaque {
     pub const Quantifier = enum(c_uint) {
@@ -595,14 +679,14 @@ pub const Query = opaque {
         pub extern fn ts_query_capture_count(?*const Query) u32;
         pub extern fn ts_query_string_count(?*const Query) u32;
         pub extern fn ts_query_start_byte_for_pattern(?*const Query, u32) u32;
-        pub extern fn ts_query_predicates_for_pattern(self: ?*const Query, pattern_index: u32, length: [*c]u32) [*c]const PredicateStep;
+        pub extern fn ts_query_predicates_for_pattern(self: ?*const Query, pattern_index: u32, length: *u32) [*]const PredicateStep;
         pub extern fn ts_query_is_pattern_rooted(self: ?*const Query, pattern_index: u32) bool;
         pub extern fn ts_query_is_pattern_non_local(self: ?*const Query, pattern_index: u32) bool;
         pub extern fn ts_query_is_pattern_guaranteed_at_step(self: ?*const Query, byte_offset: u32) bool;
-        pub extern fn ts_query_capture_name_for_id(?*const Query, id: u32, length: [*c]u32) [*c]const u8;
+        pub extern fn ts_query_capture_name_for_id(?*const Query, id: u32, length: *u32) [*:0]const u8;
         pub extern fn ts_query_capture_quantifier_for_id(?*const Query, pattern_id: u32, capture_id: u32) Quantifier;
-        pub extern fn ts_query_string_value_for_id(?*const Query, id: u32, length: [*c]u32) [*c]const u8;
-        pub extern fn ts_query_disable_capture(?*Query, [*c]const u8, u32) void;
+        pub extern fn ts_query_string_value_for_id(?*const Query, id: u32, length: *u32) [*:0]const u8;
+        pub extern fn ts_query_disable_capture(?*Query, [*]const u8, u32) void;
         pub extern fn ts_query_disable_pattern(?*Query, u32) void;
 
         pub extern fn ts_query_cursor_new() ?*Query.Cursor;
@@ -613,25 +697,11 @@ pub const Query = opaque {
         pub extern fn ts_query_cursor_set_match_limit(?*Query.Cursor, u32) void;
         pub extern fn ts_query_cursor_set_byte_range(?*Query.Cursor, u32, u32) void;
         pub extern fn ts_query_cursor_set_point_range(?*Query.Cursor, Point, Point) void;
-        pub extern fn ts_query_cursor_next_match(?*Query.Cursor, match: [*c]Query.Match) bool;
+        pub extern fn ts_query_cursor_next_match(?*Query.Cursor, match: *Query.Match) bool;
         pub extern fn ts_query_cursor_remove_match(?*Query.Cursor, id: u32) void;
         pub extern fn ts_query_cursor_next_capture(?*Query.Cursor, match: *Query.Match, capture_index: *u32) bool;
     };
 };
 
-// TODO: set allocator model
-
-// pub extern fn ts_tree_cursor_new(Node) TreeCursor;
-// pub extern fn ts_tree_cursor_delete([*c]TreeCursor) void;
-// pub extern fn ts_tree_cursor_reset([*c]TreeCursor, Node) void;
-// pub extern fn ts_tree_cursor_current_node([*c]const TreeCursor) Node;
-// pub extern fn ts_tree_cursor_current_field_name([*c]const TreeCursor) [*c]const u8;
-// pub extern fn ts_tree_cursor_current_field_id([*c]const TreeCursor) FieldId;
-// pub extern fn ts_tree_cursor_goto_parent([*c]TreeCursor) bool;
-// pub extern fn ts_tree_cursor_goto_next_sibling([*c]TreeCursor) bool;
-// pub extern fn ts_tree_cursor_goto_first_child([*c]TreeCursor) bool;
-// pub extern fn ts_tree_cursor_goto_first_child_for_byte([*c]TreeCursor, u32) i64;
-// pub extern fn ts_tree_cursor_goto_first_child_for_point([*c]TreeCursor, Point) i64;
-// pub extern fn ts_tree_cursor_copy([*c]const TreeCursor) TreeCursor;
-
+// TODO: set allocator model; not compatible with Zig's as free doesn't take a length
 // pub extern fn ts_set_allocator(new_malloc: ?*const fn (usize) callconv(.C) ?*anyopaque, new_calloc: ?*const fn (usize, usize) callconv(.C) ?*anyopaque, new_realloc: ?*const fn (?*anyopaque, usize) callconv(.C) ?*anyopaque, new_free: ?*const fn (?*anyopaque) callconv(.C) void) void;
