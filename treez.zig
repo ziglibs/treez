@@ -75,6 +75,38 @@ pub const Language = opaque {
         return ext() orelse error.Unknown;
     }
 
+    pub fn getSymbolCount(language: *const Language) u32 {
+        return externs.ts_language_symbol_count(language);
+    }
+
+    pub fn getSymbolName(language: *const Language, symbol: Symbol) []const u8 {
+        return std.mem.span(externs.ts_language_symbol_name(language, symbol));
+    }
+
+    pub fn getSymbolForName(language: *const Language, name: []const u8, is_named: bool) Symbol {
+        return externs.ts_language_symbol_for_name(language, name.ptr, @intCast(u32, name.len), is_named);
+    }
+
+    pub fn getFieldCount(language: *const Language) u32 {
+        return externs.ts_language_field_count(language);
+    }
+
+    pub fn getFieldNameForId(language: *const Language, field: FieldId) [*:0]const u8 {
+        return std.mem.span(externs.ts_language_field_name_for_id(language, field));
+    }
+
+    pub fn getFieldIdForName(language: *const Language, name: []const u8) FieldId {
+        return externs.ts_language_field_id_for_name(language, name.ptr, @intCast(u32, name.len));
+    }
+
+    pub fn getSymbolType(language: *const Language, symbol: Symbol) SymbolType {
+        return externs.ts_language_symbol_type(language, symbol);
+    }
+
+    pub fn getLanguageVersion(language: *const Language) u32 {
+        return externs.ts_language_version(language);
+    }
+
     pub const externs = struct {
         pub extern fn ts_language_symbol_count(?*const Language) u32;
         pub extern fn ts_language_symbol_name(?*const Language, Symbol) [*:0]const u8;
@@ -657,16 +689,16 @@ pub const Query = opaque {
         return externs.ts_query_is_pattern_guaranteed_at_step(query, byte_offset);
     }
 
-    pub fn captureNameForId(query: *const Query, id: u32) []const u8 {
+    pub fn getCaptureNameForId(query: *const Query, id: u32) []const u8 {
         var len: u32 = 0;
         return externs.ts_query_capture_name_for_id(query, id, &len)[0..len];
     }
 
-    pub fn ts_query_capture_quantifier_for_id(query: *const Query, pattern_id: u32, capture_id: u32) Quantifier {
+    pub fn getCaptureQuantifierForId(query: *const Query, pattern_id: u32, capture_id: u32) Quantifier {
         return externs.ts_query_capture_quantifier_for_id(query, pattern_id, capture_id);
     }
 
-    pub fn stringValueForId(query: *const Query, id: u32) []const u8 {
+    pub fn getStringValueForId(query: *const Query, id: u32) []const u8 {
         var len: u32 = 0;
         return externs.ts_query_string_value_for_id(query, id, &len)[0..len];
     }
