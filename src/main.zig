@@ -4,32 +4,27 @@ const treez = @import("treez.zig");
 pub fn main() !void {
     const ziglang = try treez.Language.get("zig");
 
-    var parser = try treez.Parser.init();
-    defer parser.deinit();
+    var parser = try treez.Parser.create();
+    defer parser.destroy();
 
     try parser.setLanguage(ziglang);
 
     const inp = @embedFile("main.zig");
     const tree = try parser.parseString(null, inp);
-    defer tree.deinit();
+    defer tree.destroy();
 
-    const query = try treez.Query.init(ziglang,
-        \\[
-        \\  function_call: (IDENTIFIER)
-        \\  function: (IDENTIFIER)
-        \\] @id
+    const query = try treez.Query.create(ziglang,
+        \\(IDENTIFIER) @id
     );
-    defer query.deinit();
+    defer query.destroy();
 
-    const cursor = try treez.QueryCursor.init();
-    defer cursor.deinit();
+    const cursor = try treez.Query.Cursor.create();
+    defer cursor.destroy();
 
     cursor.execute(query, tree.getRootNode());
 
-    while (cursor.getNextCapture()) |match| {
-        for (match.captureSlice()) |capture| {
-            const node = treez.Node{ .raw = capture.node };
-            std.log.info("{s}", .{inp[node.getStartByte()..node.getEndByte()]});
-        }
+    while (cursor.nextCapture()) |capture| {
+        const node = capture.node;
+        std.log.info("{s}", .{inp[node.getStartByte()..node.getEndByte()]});
     }
 }
