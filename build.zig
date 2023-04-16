@@ -8,23 +8,6 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const ts_lib = b.addStaticLibrary(.{
-        .name = "treez-lib",
-        .target = target,
-        .optimize = optimize,
-    });
-
-    ts_lib.linkLibC();
-
-    ts_lib.addCSourceFile("vendor/tree-sitter/lib/src/lib.c", &.{});
-    ts_lib.addIncludePath("vendor/tree-sitter/lib/include");
-    ts_lib.addIncludePath("vendor/tree-sitter/lib/src");
-
-    ts_lib.addCSourceFile("vendor/tree-sitter-zig/src/parser.c", &.{});
-    ts_lib.addIncludePath("vendor/tree-sitter-zig/src");
-
-    b.installArtifact(ts_lib);
-
     // Example
 
     const exe = b.addExecutable(.{
@@ -36,7 +19,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.linkLibrary(ts_lib);
+    exe.linkLibC();
+
+    exe.addCSourceFile("vendor/tree-sitter/lib/src/lib.c", &.{});
+    exe.addIncludePath("vendor/tree-sitter/lib/include");
+    exe.addIncludePath("vendor/tree-sitter/lib/src");
+
+    exe.addCSourceFile("vendor/tree-sitter-zig/src/parser.c", &.{});
+    exe.addIncludePath("vendor/tree-sitter-zig/src");
 
     b.installArtifact(exe);
 
