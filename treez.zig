@@ -135,7 +135,7 @@ pub const Parser = opaque {
             return error.VersionMismatch;
     }
 
-    pub fn getLanguage(parser: *Parser) ?*const Language {
+    pub fn getLanguage(parser: *const Parser) ?*const Language {
         return if (externs.ts_parser_language(parser)) |language|
             language
         else
@@ -148,7 +148,7 @@ pub const Parser = opaque {
             return error.Unknown;
     }
 
-    pub fn getIncludedRanges(parser: *Parser) []const Range {
+    pub fn getIncludedRanges(parser: *const Parser) []const Range {
         var length: u32 = 0;
         return externs.ts_parser_included_ranges(parser, &length)[0..length];
     }
@@ -192,7 +192,7 @@ pub const Parser = opaque {
         externs.ts_parser_set_timeout_micros(parser, microseconds);
     }
 
-    pub fn getTimeout(parser: *Parser) u64 {
+    pub fn getTimeout(parser: *const Parser) u64 {
         return externs.ts_parser_timeout_micros(parser);
     }
 
@@ -200,7 +200,7 @@ pub const Parser = opaque {
         externs.ts_parser_set_cancellation_flag(parser, flag);
     }
 
-    pub fn getCancellationFlag(parser: *Parser) ?*const usize {
+    pub fn getCancellationFlag(parser: *const Parser) ?*const usize {
         return externs.ts_parser_cancellation_flag(parser);
     }
 
@@ -215,7 +215,7 @@ pub const Parser = opaque {
         });
     }
 
-    pub fn getLogger(parser: *Parser) Logger {
+    pub fn getLogger(parser: *const Parser) Logger {
         return externs.ts_parser_logger(parser);
     }
 
@@ -246,7 +246,7 @@ pub const Parser = opaque {
 
 pub const Tree = opaque {
     pub const DupeError = error{Unknown};
-    pub fn dupe(tree: *Tree) DupeError!*Tree {
+    pub fn dupe(tree: *const Tree) DupeError!*Tree {
         return externs.ts_tree_copy(tree) orelse return error.Unknown;
     }
 
@@ -254,19 +254,19 @@ pub const Tree = opaque {
         externs.ts_tree_delete(tree);
     }
 
-    pub fn getRootNode(tree: *Tree) Node {
+    pub fn getRootNode(tree: *const Tree) Node {
         return externs.ts_tree_root_node(tree);
     }
 
-    pub fn getRootNodeWithOffset(tree: *Tree, offset_bytes: u32, offset_point: Point) Node {
+    pub fn getRootNodeWithOffset(tree: *const Tree, offset_bytes: u32, offset_point: Point) Node {
         return externs.ts_tree_root_node_with_offset(tree, offset_bytes, offset_point);
     }
 
-    pub fn getLanguage(tree: *Tree) *const Language {
+    pub fn getLanguage(tree: *const Tree) *const Language {
         return externs.ts_tree_language(tree).?;
     }
 
-    pub fn getIncludedRanges(tree: *Tree) []const Range {
+    pub fn getIncludedRanges(tree: *const Tree) []const Range {
         var length: u32 = 0;
         return externs.ts_tree_included_ranges(tree, &length)[0..length];
     }
@@ -276,12 +276,12 @@ pub const Tree = opaque {
         externs.ts_tree_edit(tree, the_edit);
     }
 
-    pub fn getChangedRanges(old: *Tree, new: *Tree) []const Range {
+    pub fn getChangedRanges(old: *const Tree, new: *const Tree) []const Range {
         var length: u32 = 0;
         return externs.ts_tree_get_changed_ranges(old, new, &length)[0..length];
     }
 
-    pub fn printDotGraph(tree: *Tree, file: std.fs.File) void {
+    pub fn printDotGraph(tree: *const Tree, file: std.fs.File) void {
         externs.ts_tree_print_dot_graph(tree, file.handle);
     }
 
@@ -724,7 +724,7 @@ pub const Query = opaque {
 
     pub const Capture = extern struct {
         node: Node,
-        index: u32,
+        id: u32,
     };
 
     pub const Cursor = opaque {
@@ -741,11 +741,11 @@ pub const Query = opaque {
             externs.ts_query_cursor_exec(cursor, query, node);
         }
 
-        pub fn didExceedMatchLimit(cursor: *Cursor) bool {
+        pub fn didExceedMatchLimit(cursor: *const Cursor) bool {
             return externs.ts_query_cursor_did_exceed_match_limit(cursor);
         }
 
-        pub fn getMatchLimit(cursor: *Cursor) u32 {
+        pub fn getMatchLimit(cursor: *const Cursor) u32 {
             return externs.ts_query_cursor_match_limit(cursor);
         }
 
