@@ -672,7 +672,7 @@ pub const Query = opaque {
         return externs.ts_query_start_byte_for_pattern(query, pattern_index);
     }
 
-    pub fn getPredicatesForPattern(query: *const Query, pattern_index: u32) [*]const PredicateStep {
+    pub fn getPredicatesForPattern(query: *const Query, pattern_index: u32) []const PredicateStep {
         var len: u32 = 0;
         return externs.ts_query_predicates_for_pattern(query, pattern_index, &len)[0..len];
     }
@@ -773,11 +773,11 @@ pub const Query = opaque {
             externs.ts_query_cursor_remove_match(cursor, id);
         }
 
-        pub fn nextCapture(cursor: *Cursor) ?Capture {
+        pub fn nextCapture(cursor: *Cursor) ?struct { Query.Match, u32 } {
             var match: Query.Match = undefined;
             var capture_index: u32 = 0;
             return if (externs.ts_query_cursor_next_capture(cursor, &match, &capture_index))
-                match.captures()[capture_index]
+                .{ match, capture_index }
             else
                 null;
         }
@@ -816,3 +816,141 @@ pub const Query = opaque {
 
 // TODO: set allocator model; not compatible with Zig's as free doesn't take a length
 // pub extern fn ts_set_allocator(new_malloc: ?*const fn (usize) callconv(.C) ?*anyopaque, new_calloc: ?*const fn (usize, usize) callconv(.C) ?*anyopaque, new_realloc: ?*const fn (?*anyopaque, usize) callconv(.C) ?*anyopaque, new_free: ?*const fn (?*anyopaque) callconv(.C) void) void;
+
+// Higher level constructs
+
+pub const CursorWithValidation = struct {
+    // We only support #eq?
+
+    pub const EqualPredicate = struct {
+        a: []const u8,
+        b: union(enum) { string: []const u8, capture: []const u8 },
+    };
+
+    pub const PredicateList = std.ArrayListUnmanaged(EqualPredicate);
+    pub const PredicateMap = std.AutoHashMapUnmanaged(u32, packed struct { index: u32, len: u32 });
+
+    pub const CaptureIdNameMap = std.StringHashMapUnmanaged(u32);
+
+    allocator: std.mem.Allocator,
+
+    predicates: PredicateList,
+    predicate_map: PredicateMap,
+
+    capture_name_to_id: CaptureIdNameMap,
+
+    pub fn init(allocator: std.mem.Allocator, query: *const Query) !CursorWithValidation {
+        var predicates = PredicateList{};
+        var predicate_map = PredicateMap{};
+
+        var capture_name_to_id = CaptureIdNameMap{};
+
+        for (0..query.getPatternCount()) |pattern| {
+            const preds = query.getPredicatesForPattern(@intCast(u32, pattern));
+
+            var index: usize = 0;
+            var predicate_len: u32 = 0;
+            while (index < preds.len) {
+                if (preds[index].type != .string) @panic("Unexpected predicate value");
+                if (!std.mem.eql(u8, query.getStringValueForId(@intCast(u32, preds[index].value_id)), "eq?")) @panic("Only the 'eq?' predicate is supported by treez at the moment.");
+                if (preds[index + 1].type != .capture) @panic("Unexpected predicate value");
+
+                switch (preds[index + 2].type) {
+                    .string => {
+                        try predicates.append(allocator, .{
+                            .a = query.getCaptureNameForId(@intCast(u32, preds[index + 1].value_id)),
+                            .b = .{ .string = query.getStringValueForId(@intCast(u32, preds[index + 2].value_id)) },
+                        });
+                    },
+                    .capture => {
+                        try predicates.append(allocator, .{
+                            .a = query.getCaptureNameForId(@intCast(u32, preds[index + 1].value_id)),
+                            .b = .{ .capture = query.getCaptureNameForId(@intCast(u32, preds[index + 2].value_id)) },
+                        });
+                    },
+                    else => @panic("Unexpected predicate value"),
+                }
+
+                if (preds[index + 3].type != .done) @panic("Unexpected predicate value");
+
+                // TODO: This is here as we'll need to tweak these to support future predicates
+                predicate_len += 1;
+                index += 4;
+            }
+
+            try predicate_map.put(allocator, @intCast(u32, pattern), .{
+                .index = @intCast(u32, predicates.items.len - predicate_len),
+                .len = @intCast(u32, predicate_len),
+            });
+        }
+
+        for (0..query.getCaptureCount()) |cap| {
+            try capture_name_to_id.put(allocator, query.getCaptureNameForId(@intCast(u32, cap)), @intCast(u32, cap));
+        }
+
+        return .{
+            .allocator = allocator,
+
+            .predicates = predicates,
+            .predicate_map = predicate_map,
+
+            .capture_name_to_id = capture_name_to_id,
+        };
+    }
+
+    pub fn deinit(validator: *CursorWithValidation) void {
+        validator.predicates.deinit(validator.allocator);
+        validator.* = undefined;
+    }
+
+    pub fn isValid(validator: CursorWithValidation, source: []const u8, match: Query.Match) bool {
+        if (validator.predicate_map.get(match.pattern_index)) |pred_loc| {
+            const predicates: []const EqualPredicate = validator.predicates.items[pred_loc.index .. pred_loc.index + pred_loc.len];
+            for (predicates) |pred| {
+                const a = validator.capture_name_to_id.get(pred.a).?;
+                const b_capture = switch (pred.b) {
+                    .string => null,
+                    .capture => |c| validator.capture_name_to_id.get(c).?,
+                };
+
+                var a_value: ?[]const u8 = null;
+                var b_value: ?[]const u8 = switch (pred.b) {
+                    .string => |v| v,
+                    .capture => null,
+                };
+
+                for (match.captures()) |cap| {
+                    if (cap.id == a) a_value = source[cap.node.getStartByte()..cap.node.getEndByte()];
+                    if (b_capture != null and cap.id == b_capture.?) b_value = source[cap.node.getStartByte()..cap.node.getEndByte()];
+                }
+
+                const av = a_value orelse @panic("Impossible!");
+                const bv = b_value orelse @panic("Impossible!");
+
+                std.log.info("{s} {s}", .{ av, bv });
+
+                return std.mem.eql(u8, av, bv);
+            }
+        }
+
+        return true;
+    }
+
+    pub fn nextMatch(validator: CursorWithValidation, source: []const u8, cursor: *Query.Cursor) ?Query.Match {
+        while (true) {
+            const match = cursor.nextMatch() orelse return null;
+            if (validator.isValid(source, match)) {
+                return match;
+            }
+        }
+    }
+
+    pub fn nextCapture(validator: CursorWithValidation, source: []const u8, cursor: *Query.Cursor) ?Query.Capture {
+        while (true) {
+            const capture = cursor.nextCapture() orelse return null;
+            if (validator.isValid(source, capture[0])) {
+                return capture[0].captures()[capture[1]];
+            }
+        }
+    }
+};

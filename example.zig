@@ -2,29 +2,48 @@ const std = @import("std");
 const treez = @import("treez.zig");
 
 pub fn main() !void {
+    const allocator = std.heap.page_allocator;
     const ziglang = try treez.Language.get("zig");
 
     var parser = try treez.Parser.create();
     defer parser.destroy();
 
     try parser.setLanguage(ziglang);
-    parser.useStandardLogger();
+    // parser.useStandardLogger();
 
     const inp = @embedFile("example.zig");
     const tree = try parser.parseString(null, inp);
     defer tree.destroy();
 
     const query = try treez.Query.create(ziglang,
-        \\(IDENTIFIER) @id
+        \\("pub"
+        \\    (Decl
+        \\        (VarDecl
+        \\            (ErrorUnionExpr
+        \\                (SuffixExpr
+        \\                    (
+        \\                        (BUILTINIDENTIFIER)
+        \\                        @builtin_name
+        \\                    )
+        \\                    (FnCallArguments)
+        \\                    .
+        \\                )
+        \\            )
+        \\        )
+        \\    )
+        \\    @import
+        \\)
     );
     defer query.destroy();
+
+    var pv = try treez.CursorWithValidation.init(allocator, query);
 
     const cursor = try treez.Query.Cursor.create();
     defer cursor.destroy();
 
     cursor.execute(query, tree.getRootNode());
 
-    while (cursor.nextCapture()) |capture| {
+    while (pv.nextCapture(inp, cursor)) |capture| {
         const node = capture.node;
         std.log.info("{s}", .{inp[node.getStartByte()..node.getEndByte()]});
     }
