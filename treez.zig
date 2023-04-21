@@ -437,6 +437,15 @@ pub const Node = extern struct {
         return externs.ts_node_end_point(node);
     }
 
+    pub fn getRange(node: Node) Range {
+        return .{
+            .start_byte = node.getStartByte(),
+            .start_point = node.getStartPoint(),
+            .end_byte = node.getEndByte(),
+            .end_point = node.getEndPoint(),
+        };
+    }
+
     /// Caller must call `freeSExpressionString` when done
     pub fn asSExpressionString(node: Node) []const u8 {
         return std.mem.span(externs.ts_node_string(node));
