@@ -8,6 +8,11 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    b.installArtifact(b.dependency("tree-sitter", .{
+        .target = target,
+        .optimize = optimize,
+    }).artifact("tree-sitter"));
+
     // Example
 
     const exe = b.addExecutable(.{
@@ -21,12 +26,15 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibC();
 
-    exe.addCSourceFile("vendor/tree-sitter/lib/src/lib.c", &.{});
-    exe.addIncludePath("vendor/tree-sitter/lib/include");
-    exe.addIncludePath("vendor/tree-sitter/lib/src");
+    exe.linkLibrary(b.dependency("tree-sitter", .{
+        .target = target,
+        .optimize = optimize,
+    }).artifact("tree-sitter"));
 
-    exe.addCSourceFile("vendor/tree-sitter-zig/src/parser.c", &.{});
-    exe.addIncludePath("vendor/tree-sitter-zig/src");
+    exe.linkLibrary(b.dependency("tree-sitter-zig", .{
+        .target = target,
+        .optimize = optimize,
+    }).artifact("tree-sitter-zig"));
 
     b.installArtifact(exe);
 

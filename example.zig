@@ -16,23 +16,7 @@ pub fn main() !void {
     defer tree.destroy();
 
     const query = try treez.Query.create(ziglang,
-        \\("pub"
-        \\    (Decl
-        \\        (VarDecl
-        \\            (ErrorUnionExpr
-        \\                (SuffixExpr
-        \\                    (
-        \\                        (BUILTINIDENTIFIER)
-        \\                        @builtin_name
-        \\                    )
-        \\                    (FnCallArguments)
-        \\                    .
-        \\                )
-        \\            )
-        \\        )
-        \\    )
-        \\    @import
-        \\)
+        \\(identifier) @id
     );
     defer query.destroy();
 

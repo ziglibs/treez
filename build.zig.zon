@@ -2,5 +2,14 @@
     .name = "treez",
     .version = "0.1.0",
 
-    .dependencies = .{},
+    .dependencies = .{
+        .@"tree-sitter" = .{
+            .url = "https://github.com/ziglibs/tree-sitter/archive/19f12d7a75362286d50622c2fa058325e136662d.tar.gz",
+            .hash = "12209ddf642e48ce4fc5a5c5d960e6d7e1e5337e01d2bafe26ba75eaa8b9446f9a67",
+        },
+        .@"tree-sitter-zig" = .{
+            .url = "https://zigtools-releases.nyc3.digitaloceanspaces.com/tree-sitter-zig/c7e01abfde499b3af8df148963b081444b4d5ce1.tar.gz",
+            .hash = "1220227923705a5c22105fcb993ee6206bf46cc57a890c83f67cda00c40a050a21b7",
+        },
+    },
 }

@@ -1,6 +1,0 @@
-[submodule "vendor/tree-sitter-zig"]
-	path = vendor/tree-sitter-zig
-	url = https://github.com/maxxnino/tree-sitter-zig
-[submodule "vendor/tree-sitter"]
-	path = vendor/tree-sitter
-	url = https://github.com/tree-sitter/tree-sitter
