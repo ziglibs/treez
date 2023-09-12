@@ -84,7 +84,7 @@ pub const Language = opaque {
     }
 
     pub fn getSymbolForName(language: *const Language, name: []const u8, is_named: bool) Symbol {
-        return externs.ts_language_symbol_for_name(language, name.ptr, @intCast(u32, name.len), is_named);
+        return externs.ts_language_symbol_for_name(language, name.ptr, @as(u32, @intCast(name.len)), is_named);
     }
 
     pub fn getFieldCount(language: *const Language) u32 {
@@ -96,7 +96,7 @@ pub const Language = opaque {
     }
 
     pub fn getFieldIdForName(language: *const Language, name: []const u8) FieldId {
-        return externs.ts_language_field_id_for_name(language, name.ptr, @intCast(u32, name.len));
+        return externs.ts_language_field_id_for_name(language, name.ptr, @as(u32, @intCast(name.len)));
     }
 
     pub fn getSymbolType(language: *const Language, symbol: Symbol) SymbolType {
@@ -144,7 +144,7 @@ pub const Parser = opaque {
 
     pub const SetIncludedRangesError = error{Unknown};
     pub fn setIncludedRanges(parser: *Parser, ranges: []const Range) void {
-        if (!externs.ts_parser_set_included_ranges(parser, ranges.ptr, @intCast(u32, ranges.len)))
+        if (!externs.ts_parser_set_included_ranges(parser, ranges.ptr, @as(u32, @intCast(ranges.len))))
             return error.Unknown;
     }
 
@@ -165,7 +165,7 @@ pub const Parser = opaque {
     }
 
     pub fn parseString(parser: *Parser, old_tree: ?*Tree, string: []const u8) ParseError!*Tree {
-        return if (externs.ts_parser_parse_string(parser, old_tree, string.ptr, @intCast(u32, string.len))) |tree|
+        return if (externs.ts_parser_parse_string(parser, old_tree, string.ptr, @as(u32, @intCast(string.len)))) |tree|
             tree
         else
             (if (parser.getLanguage()) |_|
@@ -175,7 +175,7 @@ pub const Parser = opaque {
     }
 
     pub fn parseStringWithEncoding(parser: *Parser, old_tree: ?*Tree, string: []const u8, encoding: InputEncoding) ParseError!*Tree {
-        return if (externs.ts_parser_parse_string(parser, old_tree, string.ptr, @intCast(u32, string.len), encoding)) |tree|
+        return if (externs.ts_parser_parse_string(parser, old_tree, string.ptr, @as(u32, @intCast(string.len)), encoding)) |tree|
             tree
         else
             (if (parser.getLanguage()) |_|
@@ -210,7 +210,7 @@ pub const Parser = opaque {
 
     pub fn useStandardLogger(parser: *Parser) void {
         parser.setLogger(.{
-            .context = @ptrCast(*anyopaque, parser),
+            .context = @as(*anyopaque, @ptrCast(parser)),
             .log_fn = &StandardLogger.log,
         });
     }
@@ -453,7 +453,7 @@ pub const Node = extern struct {
 
     pub fn freeSExpressionString(str: []const u8) void {
         // TODO: Use allocator + set_allocator
-        std.c.free(@ptrCast(*anyopaque, @constCast(str.ptr)));
+        std.c.free(@as(*anyopaque, @ptrCast(@constCast(str.ptr))));
     }
 
     pub fn format(node: Node, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -530,7 +530,7 @@ pub const Node = extern struct {
 
     /// Remember to check with isNull
     pub fn getChildByFieldName(node: Node, field_name: []const u8) Node {
-        return externs.ts_node_child_by_field_name(node, field_name.ptr, @intCast(u32, field_name.len));
+        return externs.ts_node_child_by_field_name(node, field_name.ptr, @as(u32, @intCast(field_name.len)));
     }
 
     /// Remember to check with isNull
@@ -648,7 +648,7 @@ pub const Query = opaque {
         var error_offset: u32 = 0;
         var error_type: ErrorValues = .none;
 
-        return if (externs.ts_query_new(language, source.ptr, @intCast(u32, source.len), &error_offset, &error_type)) |query|
+        return if (externs.ts_query_new(language, source.ptr, @as(u32, @intCast(source.len)), &error_offset, &error_type)) |query|
             query
         else switch (error_type) {
             .none => unreachable,
@@ -713,7 +713,7 @@ pub const Query = opaque {
     }
 
     pub fn disableCapture(query: *Query, capture: []const u8) void {
-        externs.ts_query_disable_capture(query, capture.ptr, @intCast(u32, capture.len));
+        externs.ts_query_disable_capture(query, capture.ptr, @as(u32, @intCast(capture.len)));
     }
 
     pub fn disablePattern(query: *Query, pattern_index: u32) void {
@@ -855,26 +855,26 @@ pub const CursorWithValidation = struct {
         var capture_name_to_id = CaptureIdNameMap{};
 
         for (0..query.getPatternCount()) |pattern| {
-            const preds = query.getPredicatesForPattern(@intCast(u32, pattern));
+            const preds = query.getPredicatesForPattern(@as(u32, @intCast(pattern)));
 
             var index: usize = 0;
             var predicate_len: u32 = 0;
             while (index < preds.len) {
                 if (preds[index].type != .string) @panic("Unexpected predicate value");
-                if (!std.mem.eql(u8, query.getStringValueForId(@intCast(u32, preds[index].value_id)), "eq?")) @panic("Only the 'eq?' predicate is supported by treez at the moment.");
+                if (!std.mem.eql(u8, query.getStringValueForId(@as(u32, @intCast(preds[index].value_id))), "eq?")) @panic("Only the 'eq?' predicate is supported by treez at the moment.");
                 if (preds[index + 1].type != .capture) @panic("Unexpected predicate value");
 
                 switch (preds[index + 2].type) {
                     .string => {
                         try predicates.append(allocator, .{
-                            .a = query.getCaptureNameForId(@intCast(u32, preds[index + 1].value_id)),
-                            .b = .{ .string = query.getStringValueForId(@intCast(u32, preds[index + 2].value_id)) },
+                            .a = query.getCaptureNameForId(@as(u32, @intCast(preds[index + 1].value_id))),
+                            .b = .{ .string = query.getStringValueForId(@as(u32, @intCast(preds[index + 2].value_id))) },
                         });
                     },
                     .capture => {
                         try predicates.append(allocator, .{
-                            .a = query.getCaptureNameForId(@intCast(u32, preds[index + 1].value_id)),
-                            .b = .{ .capture = query.getCaptureNameForId(@intCast(u32, preds[index + 2].value_id)) },
+                            .a = query.getCaptureNameForId(@as(u32, @intCast(preds[index + 1].value_id))),
+                            .b = .{ .capture = query.getCaptureNameForId(@as(u32, @intCast(preds[index + 2].value_id))) },
                         });
                     },
                     else => @panic("Unexpected predicate value"),
@@ -887,14 +887,14 @@ pub const CursorWithValidation = struct {
                 index += 4;
             }
 
-            try predicate_map.put(allocator, @intCast(u32, pattern), .{
-                .index = @intCast(u32, predicates.items.len - predicate_len),
-                .len = @intCast(u32, predicate_len),
+            try predicate_map.put(allocator, @as(u32, @intCast(pattern)), .{
+                .index = @as(u32, @intCast(predicates.items.len - predicate_len)),
+                .len = @as(u32, @intCast(predicate_len)),
             });
         }
 
         for (0..query.getCaptureCount()) |cap| {
-            try capture_name_to_id.put(allocator, query.getCaptureNameForId(@intCast(u32, cap)), @intCast(u32, cap));
+            try capture_name_to_id.put(allocator, query.getCaptureNameForId(@as(u32, @intCast(cap))), @as(u32, @intCast(cap)));
         }
 
         return .{
