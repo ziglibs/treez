@@ -4,12 +4,8 @@
 
     .dependencies = .{
         .@"tree-sitter" = .{
-            .url = "https://github.com/ziglibs/tree-sitter/archive/19f12d7a75362286d50622c2fa058325e136662d.tar.gz",
-            .hash = "12209ddf642e48ce4fc5a5c5d960e6d7e1e5337e01d2bafe26ba75eaa8b9446f9a67",
-        },
-        .@"tree-sitter-zig" = .{
-            .url = "https://zigtools-releases.nyc3.digitaloceanspaces.com/tree-sitter-zig/c7e01abfde499b3af8df148963b081444b4d5ce1.tar.gz",
-            .hash = "1220227923705a5c22105fcb993ee6206bf46cc57a890c83f67cda00c40a050a21b7",
+            .url = "https://github.com/ziglibs/tree-sitter/archive/1be7d7a849f9242d6a74e1836a1cac6deefb5f7d.tar.gz",
+            .hash = "1220cbcf9093838fa5e22cb939cc6f22ed203edbe0769a4650a8e819ed16c79640e2",
         },
     },
 }
