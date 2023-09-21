@@ -5,7 +5,7 @@
     .dependencies = .{
         .@"tree-sitter" = .{
             .url = "https://github.com/ziglibs/tree-sitter/archive/1be7d7a849f9242d6a74e1836a1cac6deefb5f7d.tar.gz",
-            .hash = "1220cbcf9093838fa5e22cb939cc6f22ed203edbe0769a4650a8e819ed16c79640e2",
+            .hash = "122037f860c2db559f7619bc945ac7e8ce90f3ad1c4547807c7779d879285a9341b7",
         },
     },
 }
