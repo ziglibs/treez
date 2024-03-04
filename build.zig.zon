@@ -8,4 +8,10 @@
             .hash = "1220cbcf9093838fa5e22cb939cc6f22ed203edbe0769a4650a8e819ed16c79640e2",
         },
     },
+
+    .paths = .{
+        "build.zig.zon",
+        "build.zig",
+        "treez.zig",
+    },
 }
