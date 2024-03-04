@@ -1,5 +1,7 @@
 const std = @import("std");
-const treez = @import("treez.zig");
+const treez = @import("../treez.zig");
+
+const log = std.log.scoped(.treesitter_ast)
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
@@ -29,6 +31,6 @@ pub fn main() !void {
 
     while (pv.nextCapture(inp, cursor)) |capture| {
         const node = capture.node;
-        std.log.info("{s}", .{inp[node.getStartByte()..node.getEndByte()]});
+        log.info("{s}", .{inp[node.getStartByte()..node.getEndByte()]});
     }
 }
