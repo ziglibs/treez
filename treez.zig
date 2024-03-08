@@ -5,6 +5,7 @@ const std = @import("std");
 
 pub const Symbol = enum(u16) { _ };
 pub const FieldId = enum(u16) { _ };
+pub const StateId = enum(u16) { _ };
 
 pub const InputEncoding = enum(c_uint) {
     utf_8,
@@ -565,6 +566,10 @@ pub const Node = extern struct {
         return externs.ts_node_eq(a, b);
     }
 
+    pub fn parseState(node: Node) StateId {
+        return externs.ts_node_parse_state(node);
+    }
+
     pub const externs = struct {
         pub extern fn ts_node_type(Node) [*:0]const u8;
         pub extern fn ts_node_symbol(Node) Symbol;
@@ -599,6 +604,8 @@ pub const Node = extern struct {
         pub extern fn ts_node_named_descendant_for_point_range(Node, Point, Point) Node;
         pub extern fn ts_node_edit(*Node, *const InputEdit) void;
         pub extern fn ts_node_eq(Node, Node) bool;
+
+        pub extern fn ts_node_parse_state(Node) StateId;
     };
 };
 
@@ -962,4 +969,51 @@ pub const CursorWithValidation = struct {
             }
         }
     }
+};
+
+pub const LookaheadIterator = opaque {
+    pub const InitError = error{Unknown};
+    pub fn create(language: ?*const Language, state: StateId) InitError!*LookaheadIterator {
+        return externs.ts_lookahead_iterator_new(language, state) orelse error.Unknown;
+    }
+
+    pub fn next(self: *LookaheadIterator) bool {
+        return externs.ts_lookahead_iterator_next(self);
+    }
+    pub fn currentSymbol(self: *LookaheadIterator) Symbol {
+        return externs.ts_lookahead_iterator_current_symbol(self);
+    }
+    pub fn currentSymbolName(self: *LookaheadIterator) ![*:0]const u8 {
+        return externs.ts_lookahead_iterator_current_symbol_name(self) orelse error.NoSymbol;
+    }
+
+    pub const externs = struct {
+        pub extern fn ts_lookahead_iterator_new(
+            language: ?*const Language,
+            state: StateId,
+        ) ?*LookaheadIterator;
+        pub extern fn ts_lookahead_iterator_delete(
+            self: ?*LookaheadIterator,
+        ) void;
+        pub extern fn ts_lookahead_iterator_reset_state(
+            self: ?*LookaheadIterator,
+            state: StateId,
+        ) bool;
+        pub extern fn ts_lookahead_iterator_reset(
+            self: ?*LookaheadIterator,
+            language: ?*const Language,
+        ) bool;
+        pub extern fn ts_lookahead_iterator_language(
+            self: ?*LookaheadIterator,
+        ) ?*const Language;
+        pub extern fn ts_lookahead_iterator_next(
+            self: ?*LookaheadIterator,
+        ) bool;
+        pub extern fn ts_lookahead_iterator_current_symbol(
+            self: ?*LookaheadIterator,
+        ) Symbol;
+        pub extern fn ts_lookahead_iterator_current_symbol_name(
+            self: ?*LookaheadIterator,
+        ) ?[*:0]const u8;
+    };
 };
