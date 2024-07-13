@@ -1,2 +1,3 @@
 staging
 zig-*
+.zig-cache/
