@@ -1,7 +1,7 @@
 const std = @import("std");
-const treez = @import("../treez.zig");
+const treez = @import("treez");
 
-const log = std.log.scoped(.treesitter_ast)
+const log = std.log.scoped(.treesitter_ast);
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
